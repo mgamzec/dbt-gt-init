@@ -1,0 +1,11 @@
+ecommerce_project:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      user: my_user
+      password: "my_password"
+      port: 5432
+      dbname: my_db
+      schema: public
