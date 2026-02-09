@@ -132,3 +132,130 @@ Customer analytics
 Revenue and lifetime value analysis
 
 Scalable and testable transformations
+
+🧩 Models in dbt
+
+In dbt, models are .sql files that live inside the models/ directory. Each model is written purely as a select statement—there is no need to write any explicit DDL or DML. This design allows analytics engineers to focus entirely on transformation logic rather than database mechanics.
+
+In dbt Studio, the Preview button executes the model’s select statement directly against the data warehouse. The previewed result set is exactly what the model will return once it is materialized.
+
+When dbt run is executed from the command line, dbt materializes these models into the data warehouse. By default, models are materialized as views, but this behavior can be customized.
+
+Materializations
+
+Materialization can be configured at the model level using a config block at the top of the SQL file.
+
+To materialize a model as a table:
+
+{{ config(
+    materialized='table'
+) }}
+
+
+To materialize a model as a view:
+
+{{ config(
+    materialized='view'
+) }}
+
+
+During execution, dbt automatically wraps the select statement with the appropriate DDL/DML required to build the table or view. If the model already exists in the warehouse, dbt will drop and recreate it.
+Note: On BigQuery, a dbt run --full-refresh may be required for this behavior.
+
+All compiled SQL and executed DDL/DML statements can be inspected via the dbt logs or inside the target/ directory.
+
+🧱 Modularity in dbt
+
+While it is possible to build final models in a single SQL file (as demonstrated with dim_customers), dbt strongly encourages a modular approach to data modeling.
+
+Modularity refers to designing systems whose components can be independently built, tested, and recombined. In analytics engineering, this means constructing data artifacts in logical, incremental steps.
+
+For example:
+
+Raw customer and order data are first staged and standardized
+
+Downstream models then reference these staging models
+
+Final dimension or fact tables are built by composing these modular components
+
+This mirrors how software engineers build applications and makes analytics pipelines more maintainable, testable, and scalable.
+
+🔗 The ref() Macro
+
+Hardcoding database object names (e.g. analytics.dbt_jsmith.stg_jaffle_shop_customers) makes dbt projects difficult to share across environments and team members.
+
+The ref() macro solves this problem by creating flexible, environment-aware references between models.
+
+Example:
+
+{{ ref('stg_jaffle_shop_customers') }}
+
+
+This compiles to the fully qualified relation name in the target environment, such as:
+
+analytics.dbt_jsmith.stg_jaffle_shop_customers
+
+
+Beyond abstraction, ref() enables dbt to:
+
+Automatically infer dependencies between models
+
+Build models in the correct execution order
+
+Generate a lineage graph showing upstream and downstream relationships
+
+🕰️ Modeling History & Approach
+
+Traditional data modeling approaches were largely normalized, designed for environments where storage was expensive and compute was limited.
+
+Modern cloud data warehouses invert these constraints: storage is cheap and compute is abundant. As a result, analytics teams often favor denormalized, analytics-friendly schemas that support fast querying and ad hoc analysis.
+
+dbt does not enforce a specific modeling paradigm. Instead, it provides the tooling to implement any approach—normalized, denormalized, or hybrid—based on business needs.
+
+📛 Naming Conventions
+
+This project follows common dbt naming conventions to clearly communicate intent and layer responsibility.
+
+Sources (src)
+Raw tables loaded into the warehouse via ingestion pipelines.
+
+Staging (stg)
+Models built directly on top of sources with a one-to-one relationship.
+Used for light transformations such as renaming, casting, and basic cleaning.
+Typically materialized as views.
+
+Intermediate (int)
+Models that sit between staging and final marts.
+Built on staging models to leverage standardized data.
+
+Fact (fct)
+Tables that represent events or transactions (e.g. orders, payments).
+Usually long and narrow.
+
+Dimension (dim)
+Tables that represent entities such as customers, products, or employees.
+
+While the fact/dimension terminology originates from normalized modeling, it remains highly effective for analytical use cases.
+
+🗂️ Project Organization
+
+When dbt run is executed, dbt builds all models in the models/ directory by default.
+Subfolder structure is therefore a key organizational tool.
+
+This project uses the following framework:
+
+models/staging
+Contains all staging models and source configurations
+Subfolders are organized by data source (e.g. jaffle_shop, stripe)
+
+models/marts
+Contains intermediate, fact, and dimension models
+Subfolders are organized by business domain (e.g. marketing, finance)
+
+Folder structure can also be leveraged by dbt selectors:
+
+dbt run -s staging
+
+
+This command runs only models located under models/staging.
+The same pattern applies to dbt test and other dbt commands.
